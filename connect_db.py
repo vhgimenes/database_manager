@@ -1,14 +1,12 @@
 """
 Author: Victor Gimenes
 Date: 07/12/2022
-
 Módulo criado para armazenar as funções de conexão com bancoS de dados em Azure.
 """
+
 # Importando os módulos que geram a conexão com o banco
-# Primeira possibilidade: Sqlalchemy
-import sqlalchemy as sa
-# Segunda possibilidade: Pyodbc
-import pyodbc
+import sqlalchemy as sa # Primeira possibilidade: Sqlalchemy
+import pyodbc # Segunda possibilidade: Pyodbc
 
 def get_user():
     # Alterar o usuário aqui
@@ -18,19 +16,34 @@ def get_pass():
     # Alterar a senha aqui
     return "insert the password here!"
 
-def get_string_connection():
+def get_driver()
     # Alterar o driver aqui
-    driver = "insert the driver name here!"
+    return "insert the driver name here!"
+
+def get_server()
     # Alterar o server aqui
-    server = "insert the server name here!"
-    # Alterar o database aqui
-    database = 'insert the database name here!'
+    return "insert the server name here!"
+
+def get_database()
+    # Alterar o server aqui
+    return "insert the database name here!"
+
+def get_string_connection():
+    """String de conexão via pyodbc"""
+    driver = get_driver()
+    server = get_server()
+    database = get_database()
     username = get_user()
     password = get_pass()
-    return "Driver={0};Server={1};Database={2};UID={3};PWD={4};PORT=1433;".format(driver, server, database, username, password)
+    return "Driver={0};Server={1};Database={2};UID={3};PWD={4};".format(driver, server, database, username, password)
 
 def get_string_connection_sa():
-    return 'mssql+pyodbc://{0}:{1}@tenax.database.windows.net/tenax-db?driver=SQL+Server'.format(get_user(), get_pass().replace('@', '%40'))
+    """String de conexão via sqlalchemy"""
+    username = get_user()
+    password = get_pass()
+    server = get_server()
+    database = get_database()
+    return 'mssql+pyodbc://{0}:{1}@{2}/{3}?driver=SQL+Server'.format(username, password.replace('@', '%40'), server, database)
       
 def get_connection():
     """
