@@ -1,9 +1,9 @@
 """
 Author: Victor Gimenes
 Data: 07/12/2022
-
-Módulo criado para armazenar as funções responsáveis pela execução de queries em bancos de dados Azure.
+Módulo criado para armazenar as funções de execução de queries em bancos de dados Azure.
 """
+
 # Importando bibliotecas externas necessárias
 import importlib
 import pandas as pd
@@ -13,11 +13,11 @@ import sqlalchemy as sa
 # Importando o módulo local de conexão com banco de dados
 from . import connect_db as db
 
-#! BLOCO 1 (GENÉRICOS): : Insert genérico no banco de dados
+#! BLOCO 1 (GENÉRICOS): : Insert & Upsert genéricos no banco de dados
 def params_generic_query(df) -> str:
     """
-    - Função responsável por auxiliar a parametrização das queries de
-      insert para qualquer dataframe.
+    Função responsável por auxiliar a parametrização das queries de
+    insert para qualquer dataframe.
 
     obs.: é utilizada na função insert_tbl deste módulo.
 
@@ -35,10 +35,10 @@ def params_generic_query(df) -> str:
 
 def insert_tbl(MY_TABLE,df):    # sourcery skip: extract-method
     """
-    - Função genérica responsável pela:
-        (i)  Conexão com o banco de dados.
-        (ii) Insert parametrizado do dataframe df na tabela de interesse dentro do
-             banco de dados.
+    Função genérica responsável pela:
+      (i)  Conexão com o banco de dados.
+      (ii) Insert parametrizado do dataframe df na tabela de interesse dentro do
+           banco de dados.
     
     Obs.: a função utiliza o método fast_executemany do pacote pydobc.
     
@@ -54,25 +54,28 @@ def insert_tbl(MY_TABLE,df):    # sourcery skip: extract-method
         cursor = conn.cursor()
     except Exception as e:
         raise f'Erro na conexão com o banco de dados: {e}.' from e   
+    
     # Parametrizando a query de insert com o auxílio da função params_generic_query
     params = params_generic_query(df)
     COLUMNS = params[0]
     PARAMS = params[1]
     insert = f"INSERT INTO {MY_TABLE}{COLUMNS} VALUES {PARAMS}"
-    # Setando que usaremos o método fast
+    
+    # Setando o método fast para o insert
     cursor.fast_executemany = True
     df = df.fillna(np.nan).replace([np.nan], [None])
-    # Executando a query acima
+    
+    # Executando a query criada acima
     try:
         cursor.executemany(insert, df.values.tolist())
         cursor.commit()
     except Exception as e:
-        # Caso algum erro seja gerado a partir da query, forçaremos um erro para parar a execução
-        # junto ao método rollback para preserveção da tabela
+        # Caso algum erro seja gerado a partir da query, forçaremos um erro na função para parar a execução
+        # junto ao método rollback para preserveção da tabela no banco de dados:
         cursor.rollback()
         raise f'Erro na execução do insert na tbl {MY_TABLE} no banco de dados: {e}.' from e
     finally:
-        # Em qualquer cenário, temos que fechar a conexão com a base de dados.
+        # Em qualquer cenário, temos que fechar a conexão com a base de dados
         cursor.close()
         conn.close()
     
@@ -99,6 +102,7 @@ def upsert_tbl(MY_TABLE:str, keys:list, df:pd.DataFrame):
 
     # Setando que usaremos o método fast
     cursor.fast_executemany = True
+    
     # Preparando oo parâmetros para a parametrização do upsert 
     #! Listando as colunas da base separadas por vírgulas (prepara a listagem das colunas da tbl)
     df_columns = f'({(",".join(df.columns.tolist()))})' # Exemplo: COL_A,COL_B,COL_C ... a depender da quantidade de colunas da tabela
@@ -114,8 +118,7 @@ def upsert_tbl(MY_TABLE:str, keys:list, df:pd.DataFrame):
     #! Lisando uma string com os espaços representados por "?" a depender da quantidade de colunas da tbl (prepara os parâmetros para a inserção das novas observações do insert e update)
     columns_params = ['?' for _ in range(len(df.columns.tolist()))]
     columns_params = str(columns_params).replace("[","").replace("]","").replace("'","") # Exemplo: ?,?,? .... a depender da quantidade de colunas da tabela
-    # for i in range(len(df.columns.tolist())): df.columns.tolist()[i]='?'
-    # columns_params = str(df.columns.tolist()).replace("[","").replace("]","").replace("'","") # Exemplo: ?,?,? .... a depender da quantidade de colunas da tabela
+    
     # Criando a query de upsert a partir dos parâmetros anteriores
     sql = f"MERGE INTO {MY_TABLE} as Target \
             USING (SELECT * FROM (VALUES ({columns_params})) AS s {df_columns}) AS Source \
@@ -124,13 +127,14 @@ def upsert_tbl(MY_TABLE:str, keys:list, df:pd.DataFrame):
                 INSERT {df_columns} VALUES {source_columns_params} \
             WHEN MATCHED THEN \
                 UPDATE SET {update_columns_params};"
+    
     # Excutando a query
     try:
         cursor.executemany(sql, df.values.tolist())
         cursor.commit()
     except Exception as e:
-        # Caso algum erro seja gerado a partir da query, forçaremos um erro para parar a execução
-        # junto ao método rollback para preserveção da tabela
+        # Caso algum erro seja gerado a partir da query, forçaremos um erro nessa função para parar a execução
+        # junto ao método rollback para preserveção da tabela:
         cursor.rollback()
         print(f'Erro na execução do upsert na tbl {MY_TABLE} do banco de dados: {e}.') 
     finally:
@@ -157,8 +161,10 @@ def read_tbl(MY_TABLE: str) -> pd.DataFrame:    # sourcery skip: extract-method
         conn = db.get_connection_sa()
     except Exception as e:
         raise f'Erro na conexão com o banco de dados: {e}.' from e
+    
     # Criando query a partir da tbl de input
     sql = f"SELECT * FROM {MY_TABLE}"
+    
     # Executando a query acima
     try:
         # realizando select via sqlalchemy
@@ -211,7 +217,7 @@ def execute_custom_query(sql:str):
          outras funções para selects genéricos e customizados nesse módulo.
     
     Args:
-        sql (str): query a ser executada dentro da função (foco na gestão de tbl's.
+        sql (str): query a ser executada dentro da função (foco na gestão de tbl's).
     """
     # Criando a conexão com o banco de dados a partir do módulo db
     try:
@@ -231,6 +237,7 @@ def execute_custom_query(sql:str):
         raise f'Erro na execução da query no banco de dados: {e}.' from e
     finally:
         # Em qualquer cenário, temos que fechar a conexão com a base de dados.
+        cursor.close()
         conn.close()
 
         
